@@ -66,19 +66,20 @@ Cycle.prototype.update = function ()
 
 Cycle.prototype.draw = function(context)
 {
-    /*
-    context.save();
-    context.strokeStyle = this.color;
     
+    context.save();
+    
+    context.strokeStyle = this.color;
+
     var actual = this.actualPos(this.previousVector);
     context.moveTo(actual[0],actual[1]);
     
     actual = this.actualPos(this.currentVector);
     context.lineTo(actual[0],actual[1]);
     
-    context.stroke(0);
+    context.stroke();
 
-    context.restore();*/
+    context.restore();
 };
 //**********************************************
 
@@ -164,6 +165,7 @@ CycleGame.prototype.spawnCycle = function()
     
     newCycle.currentVector[0] *= newCycle.turningRadius;
     newCycle.currentVector[1] *= newCycle.turningRadius;
+    newCycle.previousVector = newCycle.currentVector;
 
     this.cycles.push(newCycle);
 };
@@ -216,7 +218,7 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
         cycleGame.spawnCycle();
     }
     
-    cycleGame.gameLoop();
+   // cycleGame.gameLoop();
 };
 //**********************************************
 
@@ -229,6 +231,7 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
  */
 function drawRoundedBox (context, rectWidth, rectHeight, cornerRadius)
 {        
+    context.save();
     context.beginPath();
     
     context.moveTo(cornerRadius,0);
@@ -250,10 +253,16 @@ function drawRoundedBox (context, rectWidth, rectHeight, cornerRadius)
     context.lineWidth = 3;
     context.fill();
     context.stroke();
-    
     context.restore();
 }
 
+/**
+ * Draws the grid that the game will take place on.
+ * @param canvas The drawing canvas (contains width and heights).
+ * @param context The drawing context of the canvas.
+ * @param cellWidth The width of each individual cell in the grid.
+ * @return An array of the bounding conditions for the grid [left, top, width, height].
+ */
 function drawGrid (canvas,context,cellWidth)
 {
     var numVerticalIterations = canvas.width/cellWidth - 2;
@@ -261,27 +270,55 @@ function drawGrid (canvas,context,cellWidth)
     
     var left = cellWidth;
     var top = cellWidth;
+    var grad = null;
+
     
     context.save();
+    // This is used to reset the default path and present issues with drawing.
+    context.beginPath();
+    
+    // Create the bounding box that will spell death for all daring enough to crash into it.
     context.strokeRect(left+cellWidth, top+cellWidth,
         (numHorizontalIterations-2) * cellWidth,(numVerticalIterations-2)* cellWidth);
-        
-    context.lineCap='round';
+    
+    // The grid elements should have rounded caps.
+    context.lineCap = "round";
     context.lineWidth = 1;
-        
+    
+    context.beginPath();
+    
+    // Draw a vertical gradient for each vertical line.
+    grad = context.createLinearGradient(0,0,0,canvas.height);
+    grad.addColorStop(0,"#02181d");
+    grad.addColorStop(0.5,"#b5ffff");
+    grad.addColorStop(1,"#02181d");
+    context.strokeStyle = grad;
+    
+    // Draw each line iteratively.
     for(var x =1; x < numVerticalIterations; x++)
     {
         context.moveTo(left + x * cellWidth, top);
         context.lineTo(left + x * cellWidth, top + numHorizontalIterations * cellWidth);
     }
     
+    context.stroke();
+    context.beginPath();
+    
+    // Draw a horizontal gradient for each horizontal line.
+    grad = context.createLinearGradient(0,0,canvas.width,0);    
+    grad.addColorStop(0,"#02181d");
+    grad.addColorStop(0.5,"#b5ffff");
+    grad.addColorStop(1,"#02181d");    
+    context.strokeStyle = grad;
+
+    // Draw each line iteratively.
     for(var y =1; y < numVerticalIterations; y++)
     {
         context.moveTo(left, top + cellWidth*y);
         context.lineTo(left + numVerticalIterations * cellWidth, top + cellWidth*y);
     }
     
-    context.stroke();
+    context.stroke();    
     context.restore();
     
     return [left+cellWidth,top+cellWidth,numHorizontalIterations-2,numVerticalIterations-2];

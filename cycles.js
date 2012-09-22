@@ -3,7 +3,6 @@ function Cycle(){}
 
 Cycle.prototype = {
   currentVector:[0,0],
-  previousVector:[0,0],
   direction:0,// 0-E, 1-S, 2-W, 3-N
   velocity:0,
   turningRadius:0,
@@ -20,35 +19,24 @@ Cycle.actualPos = function (vector){
         vector[1] * Cycle.translation[2] + Cycle.translation[1]];  
 };
 
-Cycle.prototype.collides = function(x,y)
-{
-      return this.currentVector[0] === x &&
-        this.currentVector[1] === y;
-};
-
 Cycle.prototype.update = function ()
 {
+    if(!this.alive)
+    {  
+        return;
+    }    
+
     if(this.currentVector[0] % this.turningRadius === 0 &&
         this.currentVector[1] % this.turningRadius === 0)
     {
-        switch (this.lastInput)
+        if(this.lastInput !== -1 && 
+            (this.direction + 2) % 4 !== this.lastInput)
         {
-            case 0:
-                // Left
-                this.direction = (this.direction + 1) % 4;   
-                break;
-            case 2:
-                // Right
-                this.direction = ((this.direction - 1) + 4)%4;  
-                break;
-            default:
-                // Forward.
-                break;
-        }  
+            this.direction = this.lastInput;
+        }
         this.lastInput = -1;
+       
     }
-    
-    this.previousVector = this.currentVector;
     
     switch (this.direction)
     {
@@ -69,14 +57,19 @@ Cycle.prototype.update = function ()
 
 Cycle.prototype.draw = function(context)
 {
+    if(!this.alive)
+    {  
+        return;
+    }
+    
     context.save();
     context.beginPath();
     context.fillStyle = this.color;
-
+    
     var actual = Cycle.actualPos(this.currentVector);
     context.arc(actual[0],actual[1], 4,0,Math.PI*2,false);    
     context.fill();
-    context.restore();        
+    context.restore();  
 };
 //****************************************
 //*************Cycle Player***************
@@ -108,7 +101,7 @@ function CycleGame()
     this.canvas = null;
     this.context = null;
 }
-CycleGame.ControlSchemes = [ [37,38,39], [65,87,68]];
+CycleGame.ControlSchemes = [ [37,40,39,38], [65,83,68,87]];
 
 CycleGame.prototype.gameLoop = function()
 {
@@ -145,8 +138,8 @@ CycleGame.prototype.collisionDetection = function()
         cycleVector = [this.cycles[cycle].currentVector[0]/this.stepAmount,
             this.cycles[cycle].currentVector[1]/this.stepAmount];
             
-        if(cycleVector[0]%1 !==0 ||
-            cycleVector[1]%1 !== 0)
+        if(cycleVector[0] % 1 !==0 ||
+            cycleVector[1] % 1 !== 0)
         {
             continue;
         }
@@ -155,17 +148,17 @@ CycleGame.prototype.collisionDetection = function()
                 cycleVector[1] > this.grid[1].length -1    ||
                 cycleVector[1] <= 0                       )
         {
-            this.gameOver = true;//TODO replace
         }   
         else if(this.grid[cycleVector[0]][cycleVector[1]])
         {
-            alert("YOU LOSE!");
-            this.gameOver = true;//TODO replace
         }
         else{
             this.grid[cycleVector[0]][cycleVector[1]] = cycle;
+            continue;
    
         }
+        this.cycles[cycle].alive = false;
+
     }
 };
 
@@ -249,14 +242,13 @@ CycleGame.prototype.spawnCycle = function(player)
     newCycle.currentVector[0] *= newCycle.turningRadius;
     newCycle.currentVector[1] *= newCycle.turningRadius;
     
-    newCycle.previousVector = newCycle.currentVector;
-    
     if(player)
     {
         newCycle.controls = CycleGame.ControlSchemes[this.playerCount++];
     }
     
     this.cycles.push(newCycle);
+    
 };
 
 CycleGame.init = function(difficulty, numPlayers, numCycles)

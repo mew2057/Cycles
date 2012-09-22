@@ -69,16 +69,6 @@ Cycle.prototype.update = function ()
 
 Cycle.prototype.draw = function(context)
 {
-    /*
-    context.save();
-    context.beginPath();
-    context.fillStyle = this.colorTrail;
-
-    var actual = Cycle.actualPos(this.previousVector);
-    context.arc(actual[0],actual[1], 3,0,Math.PI*2,false);
-    context.fill();
-    context.restore();    
-    */
     context.save();
     context.beginPath();
     context.fillStyle = this.color;
@@ -109,8 +99,10 @@ function CycleGame()
     this.cellWidth = 0;
     this.upperBound = 0;
     this.leftBound = 0;
-    this.gridPositionsX =  0;
-    this.gridPositionsY =  0;
+    this.stepAmount = 0;
+    // I opted for a matrix here, as it is a simple solution and space is not of
+    // a dire concern in this issue.
+    this.grid = [[],[]];
     this.playerCount = 0;
     
     this.canvas = null;
@@ -139,8 +131,44 @@ CycleGame.prototype.update = function ()
     for( var cycle in this.cycles)
     {
         this.cycles[cycle].update(this.context);   
+        
+    }
+    
+    this.collisionDetection();
+};
+
+CycleGame.prototype.collisionDetection = function()
+{
+    var cycleVector;
+    for( var cycle in this.cycles)
+    {
+        cycleVector = [this.cycles[cycle].currentVector[0]/this.stepAmount,
+            this.cycles[cycle].currentVector[1]/this.stepAmount];
+            
+        if(cycleVector[0]%1 !==0 ||
+            cycleVector[1]%1 !== 0)
+        {
+            continue;
+        }
+        else if(cycleVector[0] > this.grid[0].length-1     ||
+                cycleVector[0] <= 0                        ||
+                cycleVector[1] > this.grid[1].length -1    ||
+                cycleVector[1] <= 0                       )
+        {
+            this.gameOver = true;//TODO replace
+        }   
+        else if(this.grid[cycleVector[0]][cycleVector[1]])
+        {
+            alert("YOU LOSE!");
+            this.gameOver = true;//TODO replace
+        }
+        else{
+            this.grid[cycleVector[0]][cycleVector[1]] = cycle;
+   
+        }
     }
 };
+
     
 CycleGame.prototype.draw = function ()
 {
@@ -169,27 +197,33 @@ CycleGame.prototype.setBounds = function(bounds)
     
     this.leftBound = bounds[0];
     this.upperBound = bounds[1];
-    this.gridPositionsX =  bounds[3];
-    this.gridPositionsY =  bounds[2];
+    for(var x =0; x < bounds[3];x++)
+    {
+        this.grid[x] = [];
+        for(var y=0; y<bounds[2];y++)
+        {
+            this.grid[x].push(null);   
+        }
+    }
 };
 
 CycleGame.prototype.spawnCycle = function(player)
 {
     var newCycle = player ? new CyclePlayer() : new Cycle();
     newCycle.velocity = 1;
-    newCycle.turningRadius = 10;
+    newCycle.turningRadius = this.stepAmount;
     
     switch(this.cycles.length)
     {
         case 0:
-            newCycle.currentVector = [this.gridPositionsX/2,
-                this.gridPositionsY-1];
+            newCycle.currentVector = [this.grid[0].length/2,
+                this.grid[1].length-1];
             newCycle.color = "blue";
             newCycle.colorTrail = "#8585FF";
             newCycle.direction = 3;
             break;
         case 1:
-            newCycle.currentVector = [this.gridPositionsX/2,
+            newCycle.currentVector = [this.grid[0].length/2,
                 1];
             newCycle.color = "red";
             newCycle.colorTrail ="#FF8585";
@@ -197,14 +231,14 @@ CycleGame.prototype.spawnCycle = function(player)
             break;
         case 2:
             newCycle.currentVector = [1,
-                this.gridPositionsY/2];
+                this.grid[1].length/2];
             newCycle.color = "yellow";
             newCycle.colorTrail ="#FFFF85";
             newCycle.direction = 2;
             break;
         case 3:
-            newCycle.currentVector =[this.gridPositionsX-1,
-                this.gridPositionsY/2];
+            newCycle.currentVector =[this.grid[0].length-1,
+                this.grid[1].length/2];
             newCycle.color = "green";
             newCycle.colorTrail = "#85FF85";
 
@@ -275,8 +309,9 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
     cycleGame.cellWidth = 25;
     cycleGame.difficulty = difficulty;
     cycleGame.setBounds(drawGrid(cycleGame.canvas,cycleGame.context,cycleGame.cellWidth));
+    cycleGame.stepAmount = 10;
         
-    Cycle.translation = [cycleGame.upperBound, cycleGame.leftBound, cycleGame.cellWidth/10];//TODO fix magic number
+    Cycle.translation = [cycleGame.upperBound, cycleGame.leftBound, cycleGame.cellWidth/cycleGame.stepAmount];//TODO fix magic number
 
     for(var cycle = 0; cycle < numCycles; cycle ++)
     {

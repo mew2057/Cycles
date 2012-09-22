@@ -1,22 +1,24 @@
-//**********************************************
-// The Cycle class used by agents, artificial or otherwise.
-function Cycle()
-{
-    this.currentVector = [0,0]; //X,Y
-    this.previousVector = [0,0];
-    this.direction = 0; // 0-E, 1-S, 2-W, 3-N
-    this.velocity = 0;
-    this.turningRadius = 0;
-    this.lastInput = 0;
-    this.color = "blue";
-    
-    this.actualPos = function (vector){
-        return [vector[0] * Cycle.translation[2] +Cycle.translation[0] ,
-            vector[1] * Cycle.translation[2] + Cycle.translation[1]];  
-    };
-} 
+//****************Cycle*******************
+function Cycle(){} 
+
+Cycle.prototype = {
+  currentVector:[0,0],
+  previousVector:[0,0],
+  direction:0,// 0-E, 1-S, 2-W, 3-N
+  velocity:0,
+  turningRadius:0,
+  color:"blue",
+  colorTrail:"blue",
+  lastInput:-1,
+  alive : true
+};
 
 Cycle.translation = [0,0,0]; //Static variable used in translation. X,Y,Z
+
+Cycle.actualPos = function (vector){
+    return [vector[0] * Cycle.translation[2] + Cycle.translation[0] ,
+        vector[1] * Cycle.translation[2] + Cycle.translation[1]];  
+};
 
 Cycle.prototype.collides = function(x,y)
 {
@@ -26,23 +28,24 @@ Cycle.prototype.collides = function(x,y)
 
 Cycle.prototype.update = function ()
 {
-    if(this.currentVector[0] % this.turningRadius &&
-        this.currentVector[0]% this.turningRadius)
+    if(this.currentVector[0] % this.turningRadius === 0 &&
+        this.currentVector[1] % this.turningRadius === 0)
     {
         switch (this.lastInput)
         {
-            case 1:
+            case 0:
                 // Left
-                this.direction = (this.direction - 1) % 4;                
+                this.direction = (this.direction + 1) % 4;   
                 break;
             case 2:
                 // Right
-                this.direction = (this.direction + 1) % 4;                
+                this.direction = ((this.direction - 1) + 4)%4;  
                 break;
             default:
                 // Forward.
                 break;
-        }   
+        }  
+        this.lastInput = -1;
     }
     
     this.previousVector = this.currentVector;
@@ -53,35 +56,49 @@ Cycle.prototype.update = function ()
             this.currentVector[0] -= this.velocity;
             break;
         case 1:
-            this.currentVector[1] -= this.velocity;
+            this.currentVector[1] += this.velocity;
             break;
         case 2:
             this.currentVector[0] += this.velocity;
             break;
         case 3:
-            this.currentVector[1] += this.velocity;
+            this.currentVector[1] -= this.velocity;
             break;
     }
 };
 
 Cycle.prototype.draw = function(context)
 {
-    
+    /*
     context.save();
-    
-    context.strokeStyle = this.color;
+    context.beginPath();
+    context.fillStyle = this.colorTrail;
 
-    var actual = this.actualPos(this.previousVector);
-    context.moveTo(actual[0],actual[1]);
-    
-    actual = this.actualPos(this.currentVector);
-    context.lineTo(actual[0],actual[1]);
-    
-    context.stroke();
+    var actual = Cycle.actualPos(this.previousVector);
+    context.arc(actual[0],actual[1], 3,0,Math.PI*2,false);
+    context.fill();
+    context.restore();    
+    */
+    context.save();
+    context.beginPath();
+    context.fillStyle = this.color;
 
-    context.restore();
+    var actual = Cycle.actualPos(this.currentVector);
+    context.arc(actual[0],actual[1], 4,0,Math.PI*2,false);    
+    context.fill();
+    context.restore();        
 };
-//**********************************************
+//****************************************
+//*************Cycle Player***************
+
+function CyclePlayer(){
+    this.controls = [0,0,0];    
+}
+
+CyclePlayer.prototype = new Cycle();
+
+//*************Cycle Game*****************
+
 
 function CycleGame()
 {
@@ -91,82 +108,120 @@ function CycleGame()
     this.cycles = [];
     this.cellWidth = 0;
     this.upperBound = 0;
-    this.lowerBound = 0;
     this.leftBound = 0;
-    this.rightBound = 0;
+    this.gridPositionsX =  0;
+    this.gridPositionsY =  0;
+    this.playerCount = 0;
     
     this.canvas = null;
     this.context = null;
-    
-    this.update = function ()
-    { 
-        return;
-    };
-    
-    this.draw = function ()
-    {
-        
-        for( var cycle in this.cycles)
-        {
-            this.cycles[cycle].draw(this.context);   
-        }
-    };
-    
-    this.gameLoop = function()
-    {
-        this.update();
-        this.draw();
-        
-        if(!this.gameOver)
-        {
-            setTimeout(this.gameLoop,this.updateDelay); //This doesn't work!!!
-        }
-    };
 }
+CycleGame.ControlSchemes = [ [37,38,39], [65,87,68]];
 
+CycleGame.prototype.gameLoop = function()
+{
+    this.update();
+    this.draw();
+    
+    if(!this.gameOver)
+    {
+        // Apparently for setTimeOut you can't simply send the object function
+        // as a call back, but you need to alias this and then 
+        // wrap an invocation in an anonymous function...
+        var self = this; 
+
+        setTimeout(function(){self.gameLoop();},this.updateDelay);
+    }
+};
+
+CycleGame.prototype.update = function ()
+{ 
+    for( var cycle in this.cycles)
+    {
+        this.cycles[cycle].update(this.context);   
+    }
+};
+    
+CycleGame.prototype.draw = function ()
+{
+    for( var cycle in this.cycles)
+    {
+        this.cycles[cycle].draw(this.context);   
+    }
+};
+
+CycleGame.prototype.handleInput = function(event)
+{
+    for(var index = 0; index < this.cycles.length;index++)
+    {
+        if(this.cycles[index].controls && 
+            this.cycles[index].controls.indexOf(event.which) != -1)
+        {
+            this.cycles[index].lastInput = this.cycles[index].controls.indexOf(
+                event.which);
+            return;
+        }
+    }
+};
 
 CycleGame.prototype.setBounds = function(bounds)
 {
+    
     this.leftBound = bounds[0];
     this.upperBound = bounds[1];
-    this.lowerBound = bounds[2] *this.cellWidth;
-    this.rightBound = bounds[3] * this.cellWidth;
+    this.gridPositionsX =  bounds[3];
+    this.gridPositionsY =  bounds[2];
 };
 
-CycleGame.prototype.spawnCycle = function()
+CycleGame.prototype.spawnCycle = function(player)
 {
-    var newCycle = new Cycle();
+    var newCycle = player ? new CyclePlayer() : new Cycle();
     newCycle.velocity = 1;
     newCycle.turningRadius = 10;
     
     switch(this.cycles.length)
     {
         case 0:
-            newCycle.currentVector = [Math.floor((this.rightBound-this.leftBound)/2),
-                this.lowerBound-1];
+            newCycle.currentVector = [this.gridPositionsX/2,
+                this.gridPositionsY-1];
             newCycle.color = "blue";
+            newCycle.colorTrail = "#8585FF";
+            newCycle.direction = 3;
             break;
         case 1:
-            newCycle.currentVector = [Math.floor((this.rightBound-this.leftBound)/2),
-                this.upperBound+1];
+            newCycle.currentVector = [this.gridPositionsX/2,
+                1];
             newCycle.color = "red";
+            newCycle.colorTrail ="#FF8585";
+            newCycle.direction = 1;
             break;
         case 2:
-            newCycle.currentVector = [this.leftBound+1,
-                Math.floor((this.lowerBound-this.upperBound)/2)];
+            newCycle.currentVector = [1,
+                this.gridPositionsY/2];
             newCycle.color = "yellow";
+            newCycle.colorTrail ="#FFFF85";
+            newCycle.direction = 2;
             break;
         case 3:
-            newCycle.currentVector = [this.rightBound-1,
-                Math.floor((this.lowerBound-this.upperBound)/2)];
+            newCycle.currentVector =[this.gridPositionsX-1,
+                this.gridPositionsY/2];
             newCycle.color = "green";
+            newCycle.colorTrail = "#85FF85";
+
+            newCycle.direction = 0;
             break;            
     }
-    
+
     newCycle.currentVector[0] *= newCycle.turningRadius;
     newCycle.currentVector[1] *= newCycle.turningRadius;
+    
     newCycle.previousVector = newCycle.currentVector;
-
+    
+    if(player)
+    {
+        newCycle.controls = CycleGame.ControlSchemes[this.playerCount++];
+    }
+    
     this.cycles.push(newCycle);
 };
 
@@ -179,30 +234,40 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
         //invalid # of players do something.   
         return;
     }
+    /*
     
     if(numCycles < 2 && numCycles > 4)
     {
         //Alert this   
         return;
-    }    
+    } */   
     
     if(difficulty < 0 || difficulty > 2)
     {
         return;   
-    }
+    }    
     
+    // Establishes the canvas with an id and a tabindex.
+    $('<canvas id="cyclesGameCanvas" tabIndex="0">HTML5 not supported in your browser</canvas>').appendTo('body');
     
-    $('<canvas id="cyclesGameCanvas">HTML5 not supported in your browser</canvas>').appendTo('body');
+    //Removes the focus border.
+    $("#cyclesGameCanvas").css("outline","0");    
+    $("#cyclesGameCanvas").focus();
+
+    //$("#cyclesGameCanvas").css("display","none");
     
     // Sets up the canvas and drawing context details for the game.
     cycleGame.canvas = document.getElementById("cyclesGameCanvas");
     cycleGame.canvas.width = 500;
     cycleGame.canvas.height = 500;
     
+    // I opt for a keydown event here, because keypressed can result in many issues when 
+    // trying to get precision in controlling the cycle.
+    $("#cyclesGameCanvas").keydown(function(e){cycleGame.handleInput(e);});
+
     cycleGame.context = cycleGame.canvas.getContext("2d");    
     cycleGame.context.fillStyle = "#02181d";
     cycleGame.context.strokeStyle = "#b5ffff";
-    
     
     
     drawRoundedBox(cycleGame.context,cycleGame.canvas.width, cycleGame.canvas.height, 10);
@@ -210,17 +275,18 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
     cycleGame.cellWidth = 25;
     cycleGame.difficulty = difficulty;
     cycleGame.setBounds(drawGrid(cycleGame.canvas,cycleGame.context,cycleGame.cellWidth));
-    
-    Cycle.translation = [cycleGame.upperBound, cycleGame.lowerBound, cycleGame.cellWidth/10];//TODO fix magic number
+        
+    Cycle.translation = [cycleGame.upperBound, cycleGame.leftBound, cycleGame.cellWidth/10];//TODO fix magic number
 
     for(var cycle = 0; cycle < numCycles; cycle ++)
     {
-        cycleGame.spawnCycle();
+        cycleGame.spawnCycle(cycleGame.playerCount < numPlayers);
     }
     
-   // cycleGame.gameLoop();
+    cycleGame.gameLoop();
 };
 //**********************************************
+//*************Helper Functions*****************
 
 /**
  *  Draws a rounded box starting at 0,0 in a canvas.
@@ -274,13 +340,7 @@ function drawGrid (canvas,context,cellWidth)
 
     
     context.save();
-    // This is used to reset the default path and present issues with drawing.
-    context.beginPath();
-    
-    // Create the bounding box that will spell death for all daring enough to crash into it.
-    context.strokeRect(left+cellWidth, top+cellWidth,
-        (numHorizontalIterations-2) * cellWidth,(numVerticalIterations-2)* cellWidth);
-    
+
     // The grid elements should have rounded caps.
     context.lineCap = "round";
     context.lineWidth = 1;
@@ -289,9 +349,9 @@ function drawGrid (canvas,context,cellWidth)
     
     // Draw a vertical gradient for each vertical line.
     grad = context.createLinearGradient(0,0,0,canvas.height);
-    grad.addColorStop(0,"#02181d");
-    grad.addColorStop(0.5,"#b5ffff");
-    grad.addColorStop(1,"#02181d");
+    grad.addColorStop(0,'rgba(255,255,255,000)');
+    grad.addColorStop(0.5,'rgba(181,255,255,255)');
+    grad.addColorStop(1,'rgba(255,255,255,000)');
     context.strokeStyle = grad;
     
     // Draw each line iteratively.
@@ -306,9 +366,9 @@ function drawGrid (canvas,context,cellWidth)
     
     // Draw a horizontal gradient for each horizontal line.
     grad = context.createLinearGradient(0,0,canvas.width,0);    
-    grad.addColorStop(0,"#02181d");
-    grad.addColorStop(0.5,"#b5ffff");
-    grad.addColorStop(1,"#02181d");    
+    grad.addColorStop(0,'rgba(255,255,255,000)');
+    grad.addColorStop(0.5,'rgba(181,255,255,255)');
+    grad.addColorStop(1,'rgba(255,255,255,000)');  
     context.strokeStyle = grad;
 
     // Draw each line iteratively.
@@ -321,5 +381,13 @@ function drawGrid (canvas,context,cellWidth)
     context.stroke();    
     context.restore();
     
+    // This is used to reset the default path and present issues with drawing.
+    context.beginPath();
+    
+    // Create the bounding box that will spell death for all daring enough to crash into it.
+    context.strokeRect(left+cellWidth, top+cellWidth,
+        (numHorizontalIterations-2) * cellWidth,(numVerticalIterations-2)* cellWidth);
+    
     return [left+cellWidth,top+cellWidth,numHorizontalIterations-2,numVerticalIterations-2];
 }
+//****************************************

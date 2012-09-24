@@ -132,6 +132,7 @@ CycleGame.prototype.update = function ()
 
 CycleGame.prototype.collisionDetection = function()
 {
+    // This needs to check the updated states of the other cycles as well.
     var cycleVector;
     for( var cycle in this.cycles)
     {
@@ -146,12 +147,10 @@ CycleGame.prototype.collisionDetection = function()
         else if(cycleVector[0] > this.grid[0].length-1     ||
                 cycleVector[0] <= 0                        ||
                 cycleVector[1] > this.grid[1].length -1    ||
-                cycleVector[1] <= 0                       )
+                cycleVector[1] <= 0                        ||
+                this.grid[cycleVector[0]][cycleVector[1]])
         {
         }   
-        else if(this.grid[cycleVector[0]][cycleVector[1]])
-        {
-        }
         else{
             this.grid[cycleVector[0]][cycleVector[1]] = cycle;
             continue;
@@ -182,6 +181,11 @@ CycleGame.prototype.handleInput = function(event)
                 event.which);
             return;
         }
+    }
+    
+    if(event.which === 13)
+    {
+        this.reset(this.difficulty,this.cycles.length, this.playerCount);
     }
 };
 
@@ -247,8 +251,7 @@ CycleGame.prototype.spawnCycle = function(player)
         newCycle.controls = CycleGame.ControlSchemes[this.playerCount++];
     }
     
-    this.cycles.push(newCycle);
-    
+    this.cycles.push(newCycle);    
 };
 
 CycleGame.init = function(difficulty, numPlayers, numCycles)
@@ -292,26 +295,35 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
     $("#cyclesGameCanvas").keydown(function(e){cycleGame.handleInput(e);});
 
     cycleGame.context = cycleGame.canvas.getContext("2d");    
-    cycleGame.context.fillStyle = "#02181d";
-    cycleGame.context.strokeStyle = "#b5ffff";
-    
-    
-    drawRoundedBox(cycleGame.context,cycleGame.canvas.width, cycleGame.canvas.height, 10);
-    
-    cycleGame.cellWidth = 25;
-    cycleGame.difficulty = difficulty;
-    cycleGame.setBounds(drawGrid(cycleGame.canvas,cycleGame.context,cycleGame.cellWidth));
-    cycleGame.stepAmount = 10;
-        
-    Cycle.translation = [cycleGame.upperBound, cycleGame.leftBound, cycleGame.cellWidth/cycleGame.stepAmount];//TODO fix magic number
 
-    for(var cycle = 0; cycle < numCycles; cycle ++)
-    {
-        cycleGame.spawnCycle(cycleGame.playerCount < numPlayers);
-    }
+    cycleGame.reset(difficulty,numCycles, numPlayers);
     
     cycleGame.gameLoop();
 };
+
+CycleGame.prototype.reset = function (difficulty,numCycles, numPlayers)
+{
+    this.cycles = [];
+    this.playerCount=0;
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.context.fillStyle = "#02181d";
+    this.context.strokeStyle = "#b5ffff";
+    //drawRoundedBox(this.context,this.canvas.width, this.canvas.height, 10);
+    
+    this.cellWidth = 25;
+    this.difficulty = difficulty;
+    this.setBounds(drawGrid(this.canvas,this.context,this.cellWidth));
+    this.stepAmount = 10;
+        
+    Cycle.translation = [this.upperBound, this.leftBound, this.cellWidth/this.stepAmount];
+    
+    for(var cycle = 0; cycle < numCycles; cycle ++)
+    {
+        this.spawnCycle(this.playerCount < numPlayers);
+    }
+};
+
 //**********************************************
 //*************Helper Functions*****************
 

@@ -72,6 +72,7 @@ Cycle.prototype.draw = function(context)
     context.restore();  
 };
 //****************************************
+
 //*************Cycle Player***************
 
 function CyclePlayer(){
@@ -79,7 +80,8 @@ function CyclePlayer(){
 }
 
 CyclePlayer.prototype = new Cycle();
-
+//****************************************
+//*************Cycle Agent****************
 //*************Cycle Game*****************
 
 
@@ -119,12 +121,17 @@ CycleGame.prototype.gameLoop = function()
     }
 };
 
+Cycle.prototype.collides = function(cycle)
+{
+      return this.currentVector[0] === cycle.currentVector[0] &&
+        this.currentVector[1] === cycle.currentVector[1];
+};
+
 CycleGame.prototype.update = function ()
 { 
     for( var cycle in this.cycles)
     {
         this.cycles[cycle].update(this.context);   
-        
     }
     
     this.collisionDetection();
@@ -139,7 +146,7 @@ CycleGame.prototype.collisionDetection = function()
         cycleVector = [this.cycles[cycle].currentVector[0]/this.stepAmount,
             this.cycles[cycle].currentVector[1]/this.stepAmount];
             
-        if(cycleVector[0] % 1 !==0 ||
+        if(cycleVector[0] % 1 !== 0 ||
             cycleVector[1] % 1 !== 0)
         {
             continue;
@@ -150,15 +157,24 @@ CycleGame.prototype.collisionDetection = function()
                 cycleVector[1] <= 0                        ||
                 this.grid[cycleVector[0]][cycleVector[1]])
         {
-        }   
-        else{
-            this.grid[cycleVector[0]][cycleVector[1]] = cycle;
+            this.cycles[cycle].alive = false;
             continue;
-   
+        }   
+        
+        this.grid[cycleVector[0]][cycleVector[1]] = cycle;
+        
+        for( var altCycle in this.cycles)
+        {
+            if( altCycle != cycle && this.cycles[cycle].collides(
+                    this.cycles[altCycle]))
+            {
+                this.cycles[cycle].alive = false;
+            }
         }
-        this.cycles[cycle].alive = false;
 
     }
+    
+    
 };
 
     
@@ -210,31 +226,33 @@ CycleGame.prototype.spawnCycle = function(player)
     newCycle.velocity = 1;
     newCycle.turningRadius = this.stepAmount;
     
+    var startOffset =  1/newCycle.turningRadius;
+    
     switch(this.cycles.length)
     {
         case 0:
             newCycle.currentVector = [this.grid[0].length/2,
-                this.grid[1].length-1];
+                this.grid[1].length- 2 + startOffset];
             newCycle.color = "blue";
             newCycle.colorTrail = "#8585FF";
             newCycle.direction = 3;
             break;
         case 1:
             newCycle.currentVector = [this.grid[0].length/2,
-                1];
+                2 - startOffset];
             newCycle.color = "red";
             newCycle.colorTrail ="#FF8585";
             newCycle.direction = 1;
             break;
         case 2:
-            newCycle.currentVector = [1,
+            newCycle.currentVector = [2 - startOffset,
                 this.grid[1].length/2];
             newCycle.color = "yellow";
             newCycle.colorTrail ="#FFFF85";
             newCycle.direction = 2;
             break;
         case 3:
-            newCycle.currentVector =[this.grid[0].length-1,
+            newCycle.currentVector =[this.grid[0].length-2 + startOffset,
                 this.grid[1].length/2];
             newCycle.color = "green";
             newCycle.colorTrail = "#85FF85";
@@ -325,6 +343,7 @@ CycleGame.prototype.reset = function (difficulty,numCycles, numPlayers)
 };
 
 //**********************************************
+
 //*************Helper Functions*****************
 
 /**

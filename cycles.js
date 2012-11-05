@@ -14,18 +14,19 @@ Cycle.prototype = {
 
 Cycle.translation = [0,0,0]; //Static variable used in translation. X,Y,Z
 
+Cycle.gridPointer = null;
+
 Cycle.actualPos = function (vector){
     return [vector[0] * Cycle.translation[2] + Cycle.translation[0] ,
         vector[1] * Cycle.translation[2] + Cycle.translation[1]];  
 };
 
-Cycle.prototype.update = function ()
+Cycle.prototype.updateBase = function ()
 {
     if(!this.alive)
     {  
         return;
     }    
-
     if(this.currentVector[0] % this.turningRadius === 0 &&
         this.currentVector[1] % this.turningRadius === 0)
     {
@@ -35,7 +36,7 @@ Cycle.prototype.update = function ()
             this.direction = this.lastInput;
         }
         this.lastInput = -1;
-       
+
     }
     
     switch (this.direction)
@@ -80,11 +81,90 @@ function CyclePlayer(){
 }
 
 CyclePlayer.prototype = new Cycle();
+
+CyclePlayer.prototype.update = function()
+{
+    this.updateBase();    
+};
 //****************************************
+
 //*************Cycle Agent****************
+function CycleAgent(){
+    this.checkCount = 0;
+}
+
+CycleAgent.prototype = new Cycle();
+
+CycleAgent.prototype.update = function()
+{
+    if(!this.alive)
+    {  
+        return;
+    }    
+    
+    this.lookAround();
+    
+    this.updateBase();    
+};
+
+CycleAgent.prototype.lookAround = function()
+{
+    // This is slow, but we only have a maximum of 4 agents so it is managable.
+    var x    = Math.ceil(this.currentVector[0]/this.turningRadius);
+    var y    = Math.ceil(this.currentVector[1]/this.turningRadius);
+    var wallDist = 0;
+    
+    while(true)
+    {       
+        
+        wallDist++;
+        switch (this.direction)
+        {
+            case 0:
+                x--;
+                break;
+            case 1:
+                y++;
+                break;
+            case 2:
+                x++;
+                break;
+            case 3:
+                y--;
+                break;
+        }
+        
+        if(!Cycle.gridPointer[x]               ||
+            x >= Cycle.gridPointer.length      || x <= 0 ||
+            y >= Cycle.gridPointer[x].length   || y <= 0)
+        {
+            break;   
+        }
+        else if (Cycle.gridPointer[x][y] !== -1)
+        {
+            wallDist--;
+            break;
+        }
+        
+    }
+        
+    // If one away or a random number is less than the inverse of the distance 
+    // (less likely farther away for a wall) turn and do it quick!
+    if(wallDist <= 1)
+    {
+        
+        if(Math.random() > 0.5)
+        {
+            this.lastInput = (this.direction === 0 ? 4 : this.direction) - 1;
+        }
+        else
+        {
+            this.lastInput = (this.direction + 1) % 4;
+        } 
+    }
+};
+
 //*************Cycle Game*****************
-
-
 function CycleGame()
 {
     this.difficulty = 0; // 0-easy, 1-medium, 2-hard
@@ -97,13 +177,14 @@ function CycleGame()
     this.stepAmount = 0;
     // I opted for a matrix here, as it is a simple solution and space is not of
     // a dire concern in this issue.
-    this.grid = [[],[]];
+    this.grid = [[]]; //Actually a matrix
     this.playerCount = 0;
     
     this.canvas = null;
     this.context = null;
 }
 CycleGame.ControlSchemes = [ [37,40,39,38], [65,83,68,87]];
+CycleGame._Game = null;
 
 CycleGame.prototype.gameLoop = function()
 {
@@ -117,7 +198,7 @@ CycleGame.prototype.gameLoop = function()
         // wrap an invocation in an anonymous function...
         var self = this; 
 
-        setTimeout(function(){self.gameLoop();},this.updateDelay);
+    setTimeout(function(){self.gameLoop();},this.updateDelay);
     }
 };
 
@@ -155,7 +236,7 @@ CycleGame.prototype.collisionDetection = function()
                 cycleVector[0] <= 0                        ||
                 cycleVector[1] > this.grid[1].length -1    ||
                 cycleVector[1] <= 0                        ||
-                this.grid[cycleVector[0]][cycleVector[1]])
+                this.grid[cycleVector[0]][cycleVector[1]] != -1)
         {
             this.cycles[cycle].alive = false;
             continue;
@@ -172,9 +253,7 @@ CycleGame.prototype.collisionDetection = function()
             }
         }
 
-    }
-    
-    
+    }  
 };
 
     
@@ -188,6 +267,8 @@ CycleGame.prototype.draw = function ()
 
 CycleGame.prototype.handleInput = function(event)
 {
+    event.stopPropagation();
+    
     for(var index = 0; index < this.cycles.length;index++)
     {
         if(this.cycles[index].controls && 
@@ -215,14 +296,17 @@ CycleGame.prototype.setBounds = function(bounds)
         this.grid[x] = [];
         for(var y=0; y<bounds[2];y++)
         {
-            this.grid[x].push(null);   
+            this.grid[x].push(-1);   
         }
     }
+    //Set the grid pointer for cycle operations.
+    
+    Cycle.gridPointer = this.grid;
 };
 
 CycleGame.prototype.spawnCycle = function(player)
 {
-    var newCycle = player ? new CyclePlayer() : new Cycle();
+    var newCycle = player ? new CyclePlayer() : new CycleAgent();
     newCycle.velocity = 1;
     newCycle.turningRadius = this.stepAmount;
     
@@ -272,7 +356,7 @@ CycleGame.prototype.spawnCycle = function(player)
     this.cycles.push(newCycle);    
 };
 
-CycleGame.init = function(difficulty, numPlayers, numCycles)
+CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
 {
     var cycleGame = new CycleGame();
     
@@ -294,14 +378,21 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
         return;   
     }    
     
-    // Establishes the canvas with an id and a tabindex.
-    $('<canvas id="cyclesGameCanvas" tabIndex="0">HTML5 not supported in your browser</canvas>').appendTo('body');
+    if(!canvas)
+    {
+        // Establishes the canvas with an id and a tabindex.
+        $('<canvas id="cyclesGameCanvas" tabIndex="0">HTML5 not supported in your browser</canvas>').appendTo('body');
+    }
+    else
+    {
+        $(canvas).attr("id","cyclesGameCanvas");
+    }
+    
+   
     
     //Removes the focus border.
     $("#cyclesGameCanvas").css("outline","0");    
     $("#cyclesGameCanvas").focus();
-
-    //$("#cyclesGameCanvas").css("display","none");
     
     // Sets up the canvas and drawing context details for the game.
     cycleGame.canvas = document.getElementById("cyclesGameCanvas");
@@ -314,7 +405,7 @@ CycleGame.init = function(difficulty, numPlayers, numCycles)
 
     cycleGame.context = cycleGame.canvas.getContext("2d");    
 
-    cycleGame.reset(difficulty,numCycles, numPlayers);
+    cycleGame.reset(difficulty, numCycles, numPlayers);
     
     cycleGame.gameLoop();
 };

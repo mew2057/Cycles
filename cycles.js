@@ -537,7 +537,10 @@ CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
 
     CycleGame._Game.reset(difficulty, numCycles, numPlayers);
     
-    CycleGame.gameLoop();
+    // This lets the post intialization garbage collection run and prevents the initial stutter.
+    setTimeout(function() {
+        CycleGame.gameLoop();
+    }, 100);
 };
 
 /**

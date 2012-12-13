@@ -16,14 +16,22 @@
             var humanPlayers = document.getElementById("sHPC");
             var totalPlayers = document.getElementById("sPC");
             
-            if(totalPlayers.options.selectedIndex < humanPlayers.options.selectedIndex)
+            if(totalPlayers.options.selectedIndex + 1 < humanPlayers.options.selectedIndex)
             {
                 totalPlayers.options.selectedIndex++;
             }
             
             CycleGame._Game.reset(0,
                 totalPlayers.options[totalPlayers.options.selectedIndex].value,
-                humanPlayers.options[humanPlayers.options.selectedIndex].value)
+                humanPlayers.options[humanPlayers.options.selectedIndex].value);
+            if(CycleGame._Game.gameOver)
+            {
+                CycleGame._Game.gameOver = false;
+                setTimeout(function() {
+                    CycleGame.gameLoop();
+                }, 100);
+            }
+                
         }
     </script>
 </head>
@@ -46,7 +54,7 @@
 <p style="color:white">
     Arrow keys for Blue.
     WASD for Red.
-    Enter resets the board.
+    Enter resets the grid.
 </p>
 
 </body>

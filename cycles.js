@@ -303,12 +303,14 @@ CycleAgent.prototype.lookAround = function()
 function CycleGame()
 {
     this.difficulty = 0;    // 0-easy, 1-medium, 2-hard
+    this.baseCycleCount = 0;
     this.gameOver = false;  // Self explanatory.
     this.cycles = [];       // The in game agents.
     this.cellWidth = 0;     // The width of one game cell.
     this.upperBound = 0;    // The upper limit of the game grid
     this.leftBound = 0;     // The left limit of the game grid.
     this.stepAmount = 0;    // The number of step per grid.
+    this.liveCycleIndex = -1;
     
     // I opted for a matrix here, as it is a simple solution and space is not of
     // a dire concern in this issue.
@@ -333,8 +335,9 @@ CycleGame.gameLoop = function()
     CycleGame._Game.update();
     CycleGame._Game.draw();
     
-    // This is just good HTML5 game style.
-    window.requestAnimFrame(CycleGame.gameLoop);
+    // If the game is done, no need to update.
+    if(!CycleGame._Game.gameOver)
+        window.requestAnimFrame(CycleGame.gameLoop);
 };
 
 /**
@@ -342,13 +345,28 @@ CycleGame.gameLoop = function()
  */
 CycleGame.prototype.draw = function ()
 {
-    for( var cycle in this.cycles)
-    {
-        if(this.cycles[cycle].alive)
-        {  
-            this.cycles[cycle].draw(this.context);  
-        }  
+    // If a game over happened
+    if(this.gameOver)
+    {   
+        this.context.save();
+        this.context.fillStyle = "white";
+    
+        // If no more cycles function we have a no victor scenario
+        // else there is a clear victor.
+        if(this.liveCycleIndex === -1)
+            this.context.fillText("No victors were to be found on the grid. Press enter to continue.", 0,12);
+        else
+            this.context.fillText("Cycle " + this.cycles[this.liveCycleIndex].color + " is the victor! Press enter to continue.", 0, 12);
+        
+        this.context.restore();
     }
+    else
+        for( var cycle in this.cycles)
+        {
+            if(this.cycles[cycle].alive)
+                this.cycles[cycle].draw(this.context);    
+        }
+        
 };
 
 /**
@@ -356,16 +374,25 @@ CycleGame.prototype.draw = function ()
  */
 CycleGame.prototype.update = function ()
 { 
-    for( var cycle in this.cycles)
+    var liveCycles = 0;
+    this.liveCycleIndex = -1;
+    for(var cycle in this.cycles)
     {
         // If we have a dead cycle send flowers to the programmer and move along.
         if(this.cycles[cycle].alive)
-        {  
+        {
             this.cycles[cycle].update(this.context);  
-        }         
+            liveCycles++;
+            this.liveCycleIndex = cycle;
+        }
     }
     
-    this.collisionDetection();
+    // If there aren't any combatant cycles left time to trigger the game over messages.
+    // Else collision detection is good to go.
+    if(liveCycles === 0 || (liveCycles === 1 &&  liveCycles < this.baseCycleCount))
+        this.gameOver = true;
+    else
+        this.collisionDetection();
 };
 
 /**
@@ -439,7 +466,17 @@ CycleGame.prototype.handleInput = function(event)
     // Enter resets the game.
     if(event.which === 13)
     {
-        this.reset(this.difficulty,this.cycles.length, this.playerCount);
+        this.reset(this.difficulty,this.baseCycleCount, this.playerCount);
+        
+        // If it was in a state of game over make the game active again.
+        if(this.gameOver)
+        {
+            this.gameOver = false;
+            setTimeout(function() {
+                CycleGame.gameLoop();
+            }, 100);
+        }
+        
     }
 };
 
@@ -553,19 +590,6 @@ CycleGame.prototype.spawnCycle = function(player)
 CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
 {
     CycleGame._Game = new CycleGame();
-    /*
-    if(numPlayers.length > 2 || numPlayers < 1)
-    {
-        //invalid # of players do something.   
-        return;
-    }*/
-    /*
-    
-    if(numCycles < 2 && numCycles > 4)
-    {
-        //Alert this   
-        return;
-    } */   
     
     if(difficulty < 0 || difficulty > 2)
     {
@@ -599,6 +623,7 @@ CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
     $("#cyclesGameCanvas").keydown(function(e){CycleGame._Game.handleInput(e);});
 
     CycleGame._Game.context = CycleGame._Game.canvas.getContext("2d");    
+    CycleGame._Game.context.font = "12px monospace";
 
     CycleGame._Game.reset(difficulty, numCycles, numPlayers);
     
@@ -631,6 +656,8 @@ CycleGame.prototype.reset = function (difficulty, numCycles, numPlayers)
     this.stepAmount = 10;
         
     Cycle.translation = [this.upperBound, this.leftBound, this.cellWidth/this.stepAmount];
+    
+    this.baseCycleCount = numCycles;
     
     for(var cycle = 0; cycle < numCycles; cycle ++)
     {

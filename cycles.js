@@ -233,12 +233,12 @@ CycleAgent.prototype.lookAround = function()
             if(this.direction === 0)
             {
                 this.lastInput = 0;
-                x = baseX + 1; 
+                x = wallDist === 0 ? baseX : baseX + 1; 
             }
             else 
             {
                 this.lastInput = 2;
-                x = baseX - 1;
+                x = wallDist === 0 ? baseX : baseX - 1;
             }
             
             // If the position is valid do work.
@@ -266,12 +266,12 @@ CycleAgent.prototype.lookAround = function()
             if(this.direction === 3)
             {
                 this.lastInput = 3;
-                y = baseY + 1; 
+                y = wallDist === 0 ? baseY : baseY + 1; 
             }
             else 
             {
                 this.lastInput = 1;
-                y = baseY - 1;    
+                y = wallDist === 0 ? baseY : baseY - 1;    
             }
                 
             // Check to see if it is a valid position.
@@ -284,8 +284,10 @@ CycleAgent.prototype.lookAround = function()
                 
                 // Check east of the cycle's position.
                 x -= 2;
+                console.log(x,baseY, y,Cycle.gridPointer[x][y], wallDist);
                 if(x > 0 && Cycle.gridPointer[x][y] === -1)
                 {
+                    
                     if(this.lastInput !== this.direction)
                         this.lastInput = Math.random() > 0.5 ? 2 : 0;
                     else

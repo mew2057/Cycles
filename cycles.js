@@ -177,8 +177,8 @@ CycleAgent.prototype.update = function()
 CycleAgent.prototype.lookAround = function()
 {
     // This is slow, but we only have a maximum of 4 agents so it is managable.
-    var x        = Math.ceil(this.currentVector[0]/this.turningRadius);
-    var y        = Math.ceil(this.currentVector[1]/this.turningRadius);
+    var x        = Math.ceil(this.currentVector[0]/this.turningRadius), baseX = x;
+    var y        = Math.ceil(this.currentVector[1]/this.turningRadius), baseY = y;
     var wallDist = 0;
     
     // Search until a wall is hit.
@@ -190,16 +190,16 @@ CycleAgent.prototype.lookAround = function()
         // Look in the current direction.
         switch (this.direction)
         {
-            case 0:
+            case 0: // E
                 x--;
                 break;
-            case 1:
+            case 1: // S
                 y++;
                 break;
-            case 2:
+            case 2: // W
                 x++;
                 break;
-            case 3:
+            case 3: // N
                 y--;
                 break;
         }
@@ -214,23 +214,85 @@ CycleAgent.prototype.lookAround = function()
         }
         else if (Cycle.gridPointer[x][y] !== -1)
         {
+            
             wallDist--;
             break;
         }
         
     }
         
-    // If less than or equal to one away turn to avoid (in a random direction...)
+    // Performs a basic 1 grid point deep check of the surrounding squares for
+    // any points of failure and picks from the available squares. If neither is free
+    // the cycle pilot screams in terror as he is derezzed.
     if(wallDist <= 1)
     {
-        if(Math.random() > 0.5)
-        {
-            this.lastInput = (this.direction === 0 ? 4 : this.direction) - 1;
+        // check up and down
+        if(baseX !== x)
+        {            
+            // Set the x value to the current position.
+            if(this.direction === 0)
+            {
+                this.lastInput = 0;
+                x = baseX + 1; 
+            }
+            else 
+            {
+                this.lastInput = 2;
+                x = baseX - 1;
+            }
+            
+            // If the position is valid do work.
+            if(Cycle.gridPointer[x])
+            {
+                // First check below the cycle (grid increases down)
+                y++;
+                if(y < Cycle.gridPointer[x].length - 1 && Cycle.gridPointer[x][y] === -1)
+                    this.lastInput = 1;
+                    
+                // Then check above cycle.
+                y-=2;
+                if(y > 0 && Cycle.gridPointer[x][y] === -1)
+                {
+                    if(this.lastInput !== this.direction)
+                        this.lastInput = Math.random() > 0.5 ? 3 : 1;
+                    else
+                        this.lastInput = 3;
+                }
+            }
         }
-        else
+        else if(baseY !== y)
         {
-            this.lastInput = (this.direction + 1) % 4;
-        } 
+            // Reset the y to the cycle position.
+            if(this.direction === 3)
+            {
+                this.lastInput = 3;
+                y = baseY + 1; 
+            }
+            else 
+            {
+                this.lastInput = 1;
+                y = baseY - 1;    
+            }
+                
+            // Check to see if it is a valid position.
+            if(Cycle.gridPointer[x] && Cycle.gridPointer[x][y])
+            {
+                // Check West of the cycle's position.
+                x ++;
+                if(x < Cycle.gridPointer.length - 1 && Cycle.gridPointer[x][y] === -1)
+                    this.lastInput = 2;
+                
+                // Check east of the cycle's position.
+                x -= 2;
+                if(x > 0 && Cycle.gridPointer[x][y] === -1)
+                {
+                    if(this.lastInput !== this.direction)
+                        this.lastInput = Math.random() > 0.5 ? 2 : 0;
+                    else
+                        this.lastInput = 0;
+                }                        
+            }
+        }
     }
 };
 
@@ -491,12 +553,12 @@ CycleGame.prototype.spawnCycle = function(player)
 CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
 {
     CycleGame._Game = new CycleGame();
-    
+    /*
     if(numPlayers.length > 2 || numPlayers < 1)
     {
         //invalid # of players do something.   
         return;
-    }
+    }*/
     /*
     
     if(numCycles < 2 && numCycles > 4)
@@ -523,6 +585,9 @@ CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
     //Removes the focus border.
     $("#cyclesGameCanvas").css("outline","0");    
     $("#cyclesGameCanvas").focus();
+    
+    $("#cyclesGameCanvas").css("float","left");    
+
     
     // Sets up the canvas and drawing context details for the game.
     CycleGame._Game.canvas = document.getElementById("cyclesGameCanvas");
@@ -551,7 +616,7 @@ CycleGame.init = function(difficulty, numPlayers, numCycles, canvas)
  * @param numPlayers 0 - 2 defines number of players.
  * @param numCycles  2 - 4 defines number of cycles.
  */
-CycleGame.prototype.reset = function (difficulty,numCycles, numPlayers)
+CycleGame.prototype.reset = function (difficulty, numCycles, numPlayers)
 {
     this.cycles = [];
     this.playerCount=0;

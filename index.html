@@ -9,9 +9,45 @@
     </title>  
 
     <script type="text/javascript" src="jquery-1.8.1.min.js"></script>        
-    <script type="text/javascript" src="cycles.js"></script>              
+    <script type="text/javascript" src="cycles.js"></script>         
+    <script type = "text/javascript">
+        function updateGameOptions ()
+        {
+            var humanPlayers = document.getElementById("sHPC");
+            var totalPlayers = document.getElementById("sPC");
+            
+            if(totalPlayers.options.selectedIndex < humanPlayers.options.selectedIndex)
+            {
+                totalPlayers.options.selectedIndex++;
+            }
+            
+            CycleGame._Game.reset(0,
+                totalPlayers.options[totalPlayers.options.selectedIndex].value,
+                humanPlayers.options[humanPlayers.options.selectedIndex].value)
+        }
+    </script>
 </head>
-<body onload="CycleGame.init(0,1,2)" style="background:black;">
+<body onload="CycleGame.init(0,2,2)" style="background:black;">
+<select id = "sHPC" >
+    <option value = "0">0 Human Players</option>
+    <option value = "1" >1 Human Player</option>
+    <option value = "2" selected>2 Human Players</option>
+</select>
+
+<select id="sPC">
+    <option value = "1">1 Player</option>
+    <option value = "2" selected>2 Players</option>
+    <option value = "3">3 Player</option>
+    <option value = "4">4 Players</option>
+</select>
+
+<input type="button" value="Set Players" onclick="updateGameOptions();" />
+
+<p style="color:white">
+    Arrow keys for Blue.
+    WASD for Red.
+    Enter resets the board.
+</p>
 
 </body>
 </html>
